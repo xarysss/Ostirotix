@@ -1,0 +1,23 @@
+# Android / Gradle
+.gradle/
+build/
+**/build/
+local.properties
+*.iml
+.idea/
+.kotlin/
+
+# Signing and local secrets
+keystore.properties
+*.jks
+*.keystore
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*.db
+
+# OS / editor
+.DS_Store
+Thumbs.db
