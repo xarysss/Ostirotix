@@ -16,6 +16,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -47,6 +48,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -70,7 +72,9 @@ import com.ostirotix.app.ui.theme.tempColor
 
 // ---------- Ressources ----------
 
-/** Petite capsule discrète : icône + valeur (pièces, pages, encre). */
+enum class ResourceKind { COINS, PAGES, INK }
+
+/** Ancienne capsule compacte utilisée dans les écrans de jeu. */
 @Composable
 fun ResourceCapsule(iconRes: Int, value: Int, tint: Color, modifier: Modifier = Modifier) {
     Row(
@@ -87,16 +91,71 @@ fun ResourceCapsule(iconRes: Int, value: Int, tint: Color, modifier: Modifier = 
     }
 }
 
+/** Petite fiche de ressource : lisible, compacte, avec sceau d'achat optionnel. */
+@Composable
+fun ResourceCapsule(
+    iconRes: Int,
+    label: String,
+    helper: String,
+    value: Int,
+    tint: Color,
+    modifier: Modifier = Modifier,
+    onAdd: (() -> Unit)? = null,
+) {
+    Column(
+        modifier = modifier
+            .height(58.dp)
+            .clip(RoundedCornerShape(10.dp))
+            .background(WoodPanel)
+            .border(1.dp, GoldOld.copy(alpha = 0.38f), RoundedCornerShape(10.dp))
+            .padding(horizontal = 7.dp, vertical = 6.dp),
+        verticalArrangement = Arrangement.SpaceBetween,
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(painterResource(iconRes), null, tint = tint, modifier = Modifier.size(13.dp))
+            Spacer(Modifier.width(4.dp))
+            Text(label, color = GoldSoft, fontSize = 9.sp, fontWeight = FontWeight.SemiBold,
+                maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("$value", color = Parchment, fontSize = 15.sp, fontWeight = FontWeight.Bold,
+                modifier = Modifier.weight(1f), maxLines = 1)
+            if (onAdd != null) {
+                Box(
+                    modifier = Modifier.size(22.dp).clip(CircleShape)
+                        .background(Brush.radialGradient(listOf(GoldSoft, GoldOld)))
+                        .border(1.dp, Color(0xFF7D5D13), CircleShape)
+                        .clickable(onClick = onAdd),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text("+", color = InkDark, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+        Text(helper, color = Parchment.copy(alpha = 0.68f), fontSize = 8.sp,
+            lineHeight = 8.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+    }
+}
+
 /** Barre des trois ressources, compacte, en haut d'écran. */
 @Composable
-fun ResourceBar(coins: Int, pages: Int, ink: Int, modifier: Modifier = Modifier) {
+fun ResourceBar(
+    coins: Int,
+    pages: Int,
+    ink: Int,
+    modifier: Modifier = Modifier,
+    onAddResource: ((ResourceKind) -> Unit)? = null,
+) {
     Row(
         modifier = modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+        horizontalArrangement = Arrangement.spacedBy(7.dp),
     ) {
-        ResourceCapsule(R.drawable.ic_coin, coins, GoldSoft)
-        ResourceCapsule(R.drawable.ic_page, pages, PageIvory)
-        ResourceCapsule(R.drawable.ic_ink, ink, Color(0xFF7FA3CC))
+        ResourceCapsule(R.drawable.ic_coin, "Pièces", "Améliorations", coins, GoldSoft,
+            modifier = Modifier.weight(1f), onAdd = onAddResource?.let { { it(ResourceKind.COINS) } })
+        ResourceCapsule(R.drawable.ic_page, "Pages", "Niveaux rares", pages, PageIvory,
+            modifier = Modifier.weight(1f), onAdd = onAddResource?.let { { it(ResourceKind.PAGES) } })
+        ResourceCapsule(R.drawable.ic_ink, "Encre", "Indices", ink, Color(0xFF7FA3CC),
+            modifier = Modifier.weight(1f), onAdd = onAddResource?.let { { it(ResourceKind.INK) } })
     }
 }
 
@@ -202,8 +261,10 @@ fun FloatingLetters(modifier: Modifier = Modifier) {
 
 /** Couverture du dictionnaire ancien avec sceau et marque-page de série. */
 @Composable
-fun BookCover(streak: Int, modifier: Modifier = Modifier) {
-    Box(modifier) {
+fun BookCover(streak: Int, modifier: Modifier = Modifier, onClick: (() -> Unit)? = null) {
+    Box(
+        modifier.then(if (onClick != null) Modifier.clip(RoundedCornerShape(18.dp)).clickable(onClick = onClick) else Modifier),
+    ) {
         // Ombre portée
         Box(
             Modifier.matchParentSize().offset(5.dp, 7.dp)
@@ -216,7 +277,7 @@ fun BookCover(streak: Int, modifier: Modifier = Modifier) {
                 .background(Brush.horizontalGradient(listOf(Color(0xFF3D1F12), LeatherDark))),
         )
         // Couverture parchemin (la tranche cuir reste visible à gauche)
-        Box(
+        BoxWithConstraints(
             Modifier.matchParentSize()
                 .padding(start = 22.dp, top = 7.dp, end = 7.dp, bottom = 9.dp)
                 .clip(RoundedCornerShape(topEnd = 12.dp, bottomEnd = 12.dp, topStart = 3.dp, bottomStart = 3.dp))
@@ -224,14 +285,28 @@ fun BookCover(streak: Int, modifier: Modifier = Modifier) {
                 .border(1.dp, ParchmentShadow,
                     RoundedCornerShape(topEnd = 12.dp, bottomEnd = 12.dp, topStart = 3.dp, bottomStart = 3.dp)),
         ) {
+            val titleSize = when {
+                maxWidth < 235.dp -> 24.sp
+                maxWidth < 275.dp -> 27.sp
+                else -> 30.sp
+            }
             Column(
-                Modifier.fillMaxSize().padding(horizontal = 14.dp, vertical = 18.dp),
+                Modifier.fillMaxSize().padding(horizontal = 12.dp, vertical = 18.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 Icon(painterResource(R.drawable.ic_quill), null, tint = InkSoft, modifier = Modifier.size(26.dp))
                 Spacer(Modifier.height(8.dp))
-                Text("OSTIROTIX", fontFamily = Garamond, fontSize = 32.sp,
-                    fontWeight = FontWeight.SemiBold, letterSpacing = 3.sp, color = InkDark)
+                Text(
+                    "OSTIROTIX",
+                    fontFamily = Garamond,
+                    fontSize = titleSize,
+                    fontWeight = FontWeight.SemiBold,
+                    letterSpacing = 1.1.sp,
+                    color = InkDark,
+                    maxLines = 1,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth(),
+                )
                 Spacer(Modifier.height(6.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(Modifier.width(34.dp).height(1.dp).background(GoldOld))
@@ -243,26 +318,26 @@ fun BookCover(streak: Int, modifier: Modifier = Modifier) {
                 Text("Déchiffre le mot secret.", fontFamily = Garamond, fontSize = 15.sp,
                     fontStyle = FontStyle.Italic, color = InkSoft, letterSpacing = 1.sp)
                 Spacer(Modifier.weight(1f))
-                WaxSeal(64.dp)
+                WaxSeal(64.dp, pulse = onClick != null)
                 Spacer(Modifier.height(6.dp))
             }
         }
         FloatingLetters(Modifier.matchParentSize().padding(2.dp))
-        // Marque-page de série quotidienne
+        // Marque-page de série quotidienne, attaché au bord du grimoire.
         if (streak > 0) {
             Column(
-                Modifier.align(Alignment.TopEnd).offset(x = 6.dp, y = 18.dp)
-                    .clip(RoundedCornerShape(topStart = 4.dp, bottomStart = 4.dp, topEnd = 8.dp, bottomEnd = 8.dp))
-                    .background(PageIvory)
+                Modifier.align(Alignment.TopEnd).offset(x = (-2).dp, y = 34.dp)
+                    .clip(RoundedCornerShape(topStart = 3.dp, bottomStart = 10.dp, topEnd = 8.dp, bottomEnd = 8.dp))
+                    .background(Brush.verticalGradient(listOf(PageIvory, ParchmentDark)))
                     .border(1.dp, ParchmentShadow, RoundedCornerShape(topStart = 4.dp, bottomStart = 4.dp, topEnd = 8.dp, bottomEnd = 8.dp))
-                    .padding(horizontal = 10.dp, vertical = 8.dp),
+                    .padding(horizontal = 8.dp, vertical = 7.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 Icon(painterResource(R.drawable.ic_bookmark), null, tint = SealRed, modifier = Modifier.size(14.dp))
-                Text("SÉRIE", fontSize = 9.sp, letterSpacing = 1.5.sp, color = InkSoft)
-                Text("$streak", fontFamily = Garamond, fontSize = 22.sp,
+                Text("SÉRIE", fontSize = 8.sp, letterSpacing = 1.2.sp, color = InkSoft)
+                Text("$streak", fontFamily = Garamond, fontSize = 20.sp,
                     fontWeight = FontWeight.Bold, color = InkDark)
-                Text(if (streak > 1) "JOURS" else "JOUR", fontSize = 9.sp, letterSpacing = 1.5.sp, color = InkSoft)
+                Text(if (streak > 1) "JOURS" else "JOUR", fontSize = 8.sp, letterSpacing = 1.2.sp, color = InkSoft)
             }
         }
     }

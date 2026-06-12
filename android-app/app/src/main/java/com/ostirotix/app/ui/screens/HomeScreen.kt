@@ -35,6 +35,7 @@ import com.ostirotix.app.ServiceLocator
 import com.ostirotix.app.ui.components.BookCover
 import com.ostirotix.app.ui.components.ParchmentCard
 import com.ostirotix.app.ui.components.ResourceBar
+import com.ostirotix.app.ui.components.ResourceKind
 import com.ostirotix.app.ui.theme.Garamond
 import com.ostirotix.app.ui.theme.GoldOld
 import com.ostirotix.app.ui.theme.GoldSoft
@@ -51,10 +52,12 @@ private data class NavItem(val label: String, val iconRes: Int, val onClick: () 
 @Composable
 fun HomeScreen(
     onDaily: () -> Unit,
+    onGrimoire: () -> Unit,
     onTraining: () -> Unit,
     onMulti: () -> Unit,
     onLeaderboard: () -> Unit,
     onLibrary: () -> Unit,
+    onTreasury: () -> Unit,
     onProfile: () -> Unit,
     onSettings: () -> Unit,
 ) {
@@ -65,12 +68,18 @@ fun HomeScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Spacer(Modifier.height(10.dp))
-            ResourceBar(prefs.coins, prefs.pages, prefs.ink)
+            ResourceBar(
+                coins = prefs.coins,
+                pages = prefs.pages,
+                ink = prefs.ink,
+                onAddResource = { _: ResourceKind -> onTreasury() },
+            )
             Spacer(Modifier.weight(0.7f))
 
             BookCover(
                 streak = prefs.streak,
                 modifier = Modifier.fillMaxWidth(0.74f).height(300.dp),
+                onClick = onGrimoire,
             )
             Spacer(Modifier.weight(1f))
 

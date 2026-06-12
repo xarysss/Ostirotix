@@ -7,6 +7,7 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.ostirotix.app.ui.screens.GrimoireTutorialScreen
 import com.ostirotix.app.ui.screens.HomeScreen
 import com.ostirotix.app.ui.screens.LeaderboardScreen
 import com.ostirotix.app.ui.screens.LibraryScreen
@@ -17,6 +18,7 @@ import com.ostirotix.app.ui.screens.ProfileScreen
 import com.ostirotix.app.ui.screens.RankedResultScreen
 import com.ostirotix.app.ui.screens.ResultScreen
 import com.ostirotix.app.ui.screens.SettingsScreen
+import com.ostirotix.app.ui.screens.ShopTab
 import com.ostirotix.app.ui.screens.SoloGameScreen
 import com.ostirotix.app.vm.AccountViewModel
 import com.ostirotix.app.vm.MultiViewModel
@@ -25,6 +27,7 @@ import com.ostirotix.app.vm.SoloViewModel
 
 object Routes {
     const val HOME = "home"
+    const val GRIMOIRE_TUTORIAL = "grimoire/tutorial"
     const val SOLO_DAILY = "solo/daily"
     const val SOLO_TRAINING = "solo/training"
     const val RESULT = "result"
@@ -36,6 +39,7 @@ object Routes {
     const val PROFILE = "profile"
     const val SETTINGS = "settings"
     const val LIBRARY = "library"
+    const val LIBRARY_TAB = "library/{tab}"
 }
 
 @Composable
@@ -51,12 +55,25 @@ fun OstirotixNavGraph(navController: NavHostController = rememberNavController()
         composable(Routes.HOME) {
             HomeScreen(
                 onDaily = { navController.navigate(Routes.SOLO_DAILY) },
+                onGrimoire = { navController.navigate(Routes.GRIMOIRE_TUTORIAL) },
                 onTraining = { navController.navigate(Routes.SOLO_TRAINING) },
                 onMulti = { navController.navigate(Routes.MULTI) },
                 onLeaderboard = { navController.navigate(Routes.LEADERBOARD) },
                 onLibrary = { navController.navigate(Routes.LIBRARY) },
+                onTreasury = { navController.navigate("library/${ShopTab.TREASURY.route}") },
                 onProfile = { navController.navigate(Routes.PROFILE) },
                 onSettings = { navController.navigate(Routes.SETTINGS) },
+            )
+        }
+
+        composable(Routes.GRIMOIRE_TUTORIAL) {
+            GrimoireTutorialScreen(
+                onClose = { navController.popBackStack() },
+                onStartDaily = {
+                    navController.navigate(Routes.SOLO_DAILY) {
+                        popUpTo(Routes.HOME) { inclusive = false }
+                    }
+                },
             )
         }
 
@@ -138,6 +155,13 @@ fun OstirotixNavGraph(navController: NavHostController = rememberNavController()
                 onBack = { navController.popBackStack() },
             )
         }
-        composable(Routes.LIBRARY) { LibraryScreen { navController.popBackStack() } }
+        composable(Routes.LIBRARY) {
+            LibraryScreen(initialTab = ShopTab.LIBRARY) { navController.popBackStack() }
+        }
+        composable(Routes.LIBRARY_TAB) { entry ->
+            LibraryScreen(initialTab = ShopTab.fromRoute(entry.arguments?.getString("tab"))) {
+                navController.popBackStack()
+            }
+        }
     }
 }

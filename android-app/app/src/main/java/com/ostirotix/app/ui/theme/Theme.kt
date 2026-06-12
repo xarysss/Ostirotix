@@ -13,9 +13,9 @@ import androidx.compose.ui.unit.sp
 import com.ostirotix.app.R
 
 // ---- Palette « vieux dictionnaire » ----
-val WoodDark = Color(0xFF17100A)        // fond bois sombre presque noir
-val WoodPanel = Color(0xFF241710)       // panneaux bois
-val WoodLight = Color(0xFF3A2718)       // bois éclairé
+val WoodDark = Color(0xFF25170F)        // fond bois noyer, sombre mais plus chaleureux
+val WoodPanel = Color(0xFF332116)       // panneaux bois brun profond
+val WoodLight = Color(0xFF4A3120)       // bois éclairé
 val Parchment = Color(0xFFEFE3C4)       // papier parchemin clair
 val ParchmentDark = Color(0xFFE2D0A8)   // parchemin vieilli
 val ParchmentShadow = Color(0xFFC9B488) // ombre de page
