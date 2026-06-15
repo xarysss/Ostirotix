@@ -67,7 +67,7 @@ object Economy {
     val resourcePacks = listOf(
         ResourcePack(
             productId = "ostirotix_pack_marque_page",
-            name = "Marque-page du novice",
+            name = "Pack novice",
             desc = "Un petit appoint pour lancer quelques améliorations.",
             coins = 300,
             pages = 2,
@@ -76,7 +76,7 @@ object Economy {
         ),
         ResourcePack(
             productId = "ostirotix_pack_encrier",
-            name = "Encrier du scribe",
+            name = "Pack or",
             desc = "De quoi acheter des indices et avancer la bibliothèque.",
             coins = 850,
             pages = 7,
@@ -85,7 +85,7 @@ object Economy {
         ),
         ResourcePack(
             productId = "ostirotix_pack_archives",
-            name = "Coffret des archives",
+            name = "Pack royal",
             desc = "Un gros lot pour les longues sessions de recherche.",
             coins = 2100,
             pages = 18,
@@ -94,7 +94,7 @@ object Economy {
         ),
         ResourcePack(
             productId = "ostirotix_pack_grand_codex",
-            name = "Grand Codex relié",
+            name = "Pack codex",
             desc = "Le pack premium pour accélérer une progression long terme.",
             coins = 5200,
             pages = 45,

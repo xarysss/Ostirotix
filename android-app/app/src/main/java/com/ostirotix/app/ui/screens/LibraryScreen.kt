@@ -47,6 +47,7 @@ import com.ostirotix.app.ServiceLocator
 import com.ostirotix.app.data.Economy
 import com.ostirotix.app.data.ResourcePack
 import com.ostirotix.app.data.Upgrade
+import com.ostirotix.app.data.UpgradeCost
 import com.ostirotix.app.ui.components.LeatherButton
 import com.ostirotix.app.ui.components.ParchmentCard
 import com.ostirotix.app.ui.components.ResourceBar
@@ -72,7 +73,11 @@ enum class ShopTab(val route: String, val label: String) {
 }
 
 @Composable
-fun LibraryScreen(initialTab: ShopTab = ShopTab.LIBRARY, onBack: () -> Unit) {
+fun LibraryScreen(
+    initialTab: ShopTab = ShopTab.LIBRARY,
+    onRequireAuth: () -> Unit,
+    onBack: () -> Unit,
+) {
     val prefs = ServiceLocator.prefs
     var refresh by remember { mutableIntStateOf(0) }
     var selectedTab by remember(initialTab) { mutableStateOf(initialTab) }
@@ -118,7 +123,11 @@ fun LibraryScreen(initialTab: ShopTab = ShopTab.LIBRARY, onBack: () -> Unit) {
                     items(Economy.upgrades, key = { it.id }) { upg ->
                         val level = remember(refresh) { prefs.upgradeLevel(upg.id) }
                         UpgradeCard(upg, level, coins, pages, ink) {
-                            if (Economy.buyUpgrade(prefs, upg.id)) refresh++
+                            if (prefs.isAuthenticated) {
+                                if (Economy.buyUpgrade(prefs, upg.id)) refresh++
+                            } else {
+                                onRequireAuth()
+                            }
                         }
                     }
                 }
@@ -139,8 +148,12 @@ fun LibraryScreen(initialTab: ShopTab = ShopTab.LIBRARY, onBack: () -> Unit) {
                     }
                     items(Economy.resourcePacks, key = { it.productId }) { pack ->
                         ResourcePackCard(pack) {
-                            Economy.requestResourcePackPurchase(pack)
-                            billingMessage = "Achat non activé : ${pack.productId} doit être relié à Google Play Billing avant de créditer les ressources."
+                            if (prefs.isAuthenticated) {
+                                Economy.requestResourcePackPurchase(pack)
+                                billingMessage = "Achat non activé : ${pack.productId} doit être relié à Google Play Billing avant de créditer les ressources."
+                            } else {
+                                onRequireAuth()
+                            }
                         }
                     }
                 }
@@ -185,70 +198,65 @@ private fun ShopTabs(selectedTab: ShopTab, onSelect: (ShopTab) -> Unit) {
 @Composable
 private fun IntroCard(title: String, body: String) {
     ParchmentCard(Modifier.fillMaxWidth(), corner = 12.dp) {
-        Column(Modifier.padding(15.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-            Text(title, fontFamily = Garamond, fontSize = 21.sp,
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(
+                Modifier.size(42.dp).clip(CircleShape)
+                    .background(Brush.radialGradient(listOf(GoldSoft, GoldOld, Color(0xFF6E3F12))))
+                    .border(1.dp, PageIvory.copy(alpha = 0.35f), CircleShape),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(painterResource(R.drawable.ic_book), null, tint = InkDark, modifier = Modifier.size(24.dp))
+            }
+            Spacer(Modifier.width(12.dp))
+            Text(title, fontFamily = Garamond, fontSize = 22.sp,
                 fontWeight = FontWeight.SemiBold, color = InkDark)
-            Text(body, color = InkSoft, fontSize = 12.sp, lineHeight = 16.sp)
         }
     }
 }
-
 @Composable
 private fun UpgradeCard(upg: Upgrade, level: Int, coins: Int, pages: Int, ink: Int, onBuy: () -> Unit) {
     val cost = Economy.upgradeCost(upg, level)
     val maxed = level >= upg.maxLevel
     val canAfford = !maxed && coins >= cost.coins && pages >= cost.pages && ink >= cost.ink
-    val nextLevel = (level + 1).coerceAtMost(upg.maxLevel)
 
     ParchmentCard(Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    Text(upg.name, fontFamily = Garamond, fontSize = 19.sp,
-                        fontWeight = FontWeight.SemiBold, color = InkDark)
-                    Text(upg.desc, color = InkSoft, fontSize = 12.sp, lineHeight = 15.sp)
-                }
-                LevelSeal(if (maxed) "MAX" else "$level/${upg.maxLevel}")
-            }
-
-            Box(
-                Modifier.fillMaxWidth().height(5.dp).clip(RoundedCornerShape(3.dp))
-                    .background(ParchmentShadow),
-            ) {
+        Row(
+            Modifier.fillMaxWidth().padding(14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            LevelSeal(if (maxed) "MAX" else "$level/${upg.maxLevel}")
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(upg.name, fontFamily = Garamond, fontSize = 19.sp,
+                    fontWeight = FontWeight.SemiBold, color = InkDark, maxLines = 1)
                 Box(
-                    Modifier.fillMaxWidth(level.toFloat() / upg.maxLevel).height(5.dp)
-                        .clip(RoundedCornerShape(3.dp)).background(GoldOld),
-                )
-            }
-
-            if (level > 0) {
-                Text("Actuel : ${upg.effectText(level)}", color = InkBlue, fontSize = 13.sp,
-                    fontStyle = FontStyle.Italic)
+                    Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(4.dp))
+                        .background(ParchmentShadow),
+                ) {
+                    Box(
+                        Modifier.fillMaxWidth(level.toFloat() / upg.maxLevel).height(6.dp)
+                            .clip(RoundedCornerShape(4.dp)).background(GoldOld),
+                    )
+                }
+                if (!maxed) CostLine(cost)
             }
             if (!maxed) {
-                Text("Prochain niveau : ${upg.effectText(nextLevel)}", color = InkSoft,
-                    fontSize = 12.sp, lineHeight = 15.sp)
-                CostLine(costText = Economy.costText(cost))
-                LeatherButton(
-                    "Améliorer",
-                    onClick = onBuy,
-                    enabled = canAfford,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                if (!canAfford) {
-                    val missing = buildList {
-                        if (coins < cost.coins) add("${cost.coins - coins} pièces")
-                        if (pages < cost.pages) add("${cost.pages - pages} pages")
-                        if (ink < cost.ink) add("${cost.ink - ink} encre")
-                    }.joinToString(" · ")
-                    Text("Il manque $missing.", color = InkSoft, fontSize = 11.sp,
-                        fontStyle = FontStyle.Italic)
+                Box(
+                    Modifier.size(52.dp).clip(CircleShape)
+                        .background(Brush.radialGradient(listOf(SealRed, Color(0xFF5E1C10))))
+                        .border(1.dp, GoldOld.copy(alpha = 0.65f), CircleShape)
+                        .clickable(enabled = canAfford, onClick = onBuy),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text("+", fontSize = 28.sp, fontWeight = FontWeight.Bold, color = PageIvory)
                 }
             }
         }
     }
 }
-
 @Composable
 private fun LevelSeal(text: String) {
     Box(
@@ -263,59 +271,78 @@ private fun LevelSeal(text: String) {
 }
 
 @Composable
-private fun CostLine(costText: String) {
-    Row(
-        Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp)).background(WoodPanel.copy(alpha = 0.92f))
-            .border(1.dp, GoldOld.copy(alpha = 0.22f), RoundedCornerShape(8.dp))
-            .padding(horizontal = 10.dp, vertical = 7.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Icon(painterResource(R.drawable.ic_coin), null, tint = GoldSoft, modifier = Modifier.size(15.dp))
-        Spacer(Modifier.width(7.dp))
-        Text(costText, color = PageIvory, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+private fun CostLine(cost: UpgradeCost) {
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+        CostPip(R.drawable.ic_coin, cost.coins, GoldSoft, Modifier.weight(1f))
+        if (cost.pages > 0) CostPip(R.drawable.ic_page, cost.pages, PageIvory, Modifier.weight(1f))
+        if (cost.ink > 0) CostPip(R.drawable.ic_ink, cost.ink, InkBlue, Modifier.weight(1f))
     }
 }
 
 @Composable
+private fun CostPip(iconRes: Int, value: Int, tint: Color, modifier: Modifier = Modifier) {
+    Row(
+        modifier.clip(RoundedCornerShape(8.dp)).background(WoodPanel.copy(alpha = 0.92f))
+            .border(1.dp, GoldOld.copy(alpha = 0.22f), RoundedCornerShape(8.dp))
+            .padding(horizontal = 8.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.Center,
+    ) {
+        Icon(painterResource(iconRes), null, tint = tint, modifier = Modifier.size(16.dp))
+        Spacer(Modifier.width(5.dp))
+        Text("$value", color = PageIvory, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+    }
+}
+@Composable
 private fun ResourcePackCard(pack: ResourcePack, onBuy: () -> Unit) {
-    ParchmentCard(Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    ParchmentCard(Modifier.fillMaxWidth(), corner = 16.dp) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    Text(pack.name, fontFamily = Garamond, fontSize = 19.sp,
-                        fontWeight = FontWeight.SemiBold, color = InkDark)
-                    Text(pack.desc, color = InkSoft, fontSize = 12.sp, lineHeight = 15.sp)
+                Box(
+                    Modifier.size(64.dp).clip(CircleShape)
+                        .background(Brush.radialGradient(listOf(GoldSoft, GoldOld, Color(0xFF5F3511))))
+                        .border(2.dp, PageIvory.copy(alpha = 0.32f), CircleShape),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(painterResource(R.drawable.ic_book), null, tint = InkDark, modifier = Modifier.size(34.dp))
                 }
-                Text(pack.priceLabel, fontFamily = Garamond, fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold, color = SealRed)
+                Spacer(Modifier.width(12.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(pack.name, fontFamily = Garamond, fontSize = 22.sp,
+                        fontWeight = FontWeight.SemiBold, color = InkDark, maxLines = 1)
+                    Text(pack.priceLabel, fontFamily = Garamond, fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold, color = SealRed)
+                }
+                Box(
+                    Modifier.size(50.dp).clip(CircleShape)
+                        .background(Brush.radialGradient(listOf(SealRed, Color(0xFF5E1C10))))
+                        .border(1.dp, GoldOld.copy(alpha = 0.7f), CircleShape)
+                        .clickable(onClick = onBuy),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text("+", fontSize = 28.sp, fontWeight = FontWeight.Bold, color = PageIvory)
+                }
             }
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                PackResource(R.drawable.ic_coin, "${pack.coins}", "Pièces", GoldSoft, Modifier.weight(1f))
-                PackResource(R.drawable.ic_page, "${pack.pages}", "Pages", PageIvory, Modifier.weight(1f))
-                PackResource(R.drawable.ic_ink, "${pack.ink}", "Encre", InkBlue, Modifier.weight(1f))
+                PackResource(R.drawable.ic_coin, pack.coins, GoldSoft, Modifier.weight(1f))
+                PackResource(R.drawable.ic_page, pack.pages, PageIvory, Modifier.weight(1f))
+                PackResource(R.drawable.ic_ink, pack.ink, InkBlue, Modifier.weight(1f))
             }
-            LeatherButton(
-                "Préparer l'achat",
-                onClick = onBuy,
-                modifier = Modifier.fillMaxWidth(),
-            )
-            Text("Paiement réel désactivé pour l'instant.", color = InkSoft, fontSize = 11.sp,
-                fontStyle = FontStyle.Italic)
         }
     }
 }
 
 @Composable
-private fun PackResource(iconRes: Int, value: String, label: String, tint: Color, modifier: Modifier = Modifier) {
-    Column(
-        modifier.clip(RoundedCornerShape(8.dp)).background(WoodPanel)
-            .border(1.dp, GoldOld.copy(alpha = 0.22f), RoundedCornerShape(8.dp))
-            .padding(vertical = 8.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
+private fun PackResource(iconRes: Int, value: Int, tint: Color, modifier: Modifier = Modifier) {
+    Row(
+        modifier.clip(RoundedCornerShape(10.dp)).background(Brush.verticalGradient(listOf(WoodPanel, Color(0xFF2B1A10))))
+            .border(1.dp, GoldOld.copy(alpha = 0.28f), RoundedCornerShape(10.dp))
+            .padding(horizontal = 8.dp, vertical = 9.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.Center,
     ) {
-        Icon(painterResource(iconRes), null, tint = tint, modifier = Modifier.size(15.dp))
-        Spacer(Modifier.height(3.dp))
-        Text(value, color = PageIvory, fontSize = 13.sp, fontWeight = FontWeight.Bold)
-        Text(label, color = GoldSoft, fontSize = 9.sp)
+        Icon(painterResource(iconRes), null, tint = tint, modifier = Modifier.size(20.dp))
+        Spacer(Modifier.width(6.dp))
+        Text("$value", color = PageIvory, fontSize = 15.sp, fontWeight = FontWeight.Bold, maxLines = 1)
     }
 }

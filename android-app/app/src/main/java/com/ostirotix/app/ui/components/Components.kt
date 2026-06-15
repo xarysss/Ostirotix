@@ -91,7 +91,7 @@ fun ResourceCapsule(iconRes: Int, value: Int, tint: Color, modifier: Modifier = 
     }
 }
 
-/** Petite fiche de ressource : lisible, compacte, avec sceau d'achat optionnel. */
+/** Fiche visuelle de ressource : symbole dominant, montant et sceau d'achat. */
 @Composable
 fun ResourceCapsule(
     iconRes: Int,
@@ -102,41 +102,45 @@ fun ResourceCapsule(
     modifier: Modifier = Modifier,
     onAdd: (() -> Unit)? = null,
 ) {
-    Column(
+    Row(
         modifier = modifier
             .height(58.dp)
-            .clip(RoundedCornerShape(10.dp))
-            .background(WoodPanel)
-            .border(1.dp, GoldOld.copy(alpha = 0.38f), RoundedCornerShape(10.dp))
-            .padding(horizontal = 7.dp, vertical = 6.dp),
-        verticalArrangement = Arrangement.SpaceBetween,
+            .clip(RoundedCornerShape(12.dp))
+            .background(Brush.verticalGradient(listOf(Color(0xFF432719), WoodPanel)))
+            .border(1.dp, GoldOld.copy(alpha = 0.42f), RoundedCornerShape(12.dp))
+            .padding(horizontal = 8.dp, vertical = 7.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(painterResource(iconRes), null, tint = tint, modifier = Modifier.size(13.dp))
-            Spacer(Modifier.width(4.dp))
-            Text(label, color = GoldSoft, fontSize = 9.sp, fontWeight = FontWeight.SemiBold,
-                maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Box(
+            Modifier.size(38.dp).clip(CircleShape)
+                .background(Brush.radialGradient(listOf(tint.copy(alpha = 0.95f), Color(0xFF2A160D))))
+                .border(1.dp, GoldOld.copy(alpha = 0.55f), CircleShape),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(painterResource(iconRes), null, tint = PageIvory, modifier = Modifier.size(22.dp))
         }
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("$value", color = Parchment, fontSize = 15.sp, fontWeight = FontWeight.Bold,
-                modifier = Modifier.weight(1f), maxLines = 1)
-            if (onAdd != null) {
-                Box(
-                    modifier = Modifier.size(22.dp).clip(CircleShape)
-                        .background(Brush.radialGradient(listOf(GoldSoft, GoldOld)))
-                        .border(1.dp, Color(0xFF7D5D13), CircleShape)
-                        .clickable(onClick = onAdd),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text("+", color = InkDark, fontSize = 15.sp, fontWeight = FontWeight.Bold)
-                }
+        Spacer(Modifier.width(8.dp))
+        Text(
+            "$value",
+            color = PageIvory,
+            fontSize = 19.sp,
+            fontWeight = FontWeight.Bold,
+            maxLines = 1,
+            modifier = Modifier.weight(1f),
+        )
+        if (onAdd != null) {
+            Box(
+                modifier = Modifier.size(28.dp).clip(CircleShape)
+                    .background(Brush.radialGradient(listOf(GoldSoft, GoldOld, Color(0xFF7D4D12))))
+                    .border(1.dp, PageIvory.copy(alpha = 0.35f), CircleShape)
+                    .clickable(onClick = onAdd),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text("+", color = InkDark, fontSize = 19.sp, fontWeight = FontWeight.Bold)
             }
         }
-        Text(helper, color = Parchment.copy(alpha = 0.68f), fontSize = 8.sp,
-            lineHeight = 8.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
-
 /** Barre des trois ressources, compacte, en haut d'écran. */
 @Composable
 fun ResourceBar(

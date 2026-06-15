@@ -7,6 +7,9 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.ostirotix.app.ServiceLocator
+import com.ostirotix.app.data.auth.AuthMode
+import com.ostirotix.app.ui.screens.AuthScreen
 import com.ostirotix.app.ui.screens.GrimoireTutorialScreen
 import com.ostirotix.app.ui.screens.HomeScreen
 import com.ostirotix.app.ui.screens.LeaderboardScreen
@@ -21,6 +24,7 @@ import com.ostirotix.app.ui.screens.SettingsScreen
 import com.ostirotix.app.ui.screens.ShopTab
 import com.ostirotix.app.ui.screens.SoloGameScreen
 import com.ostirotix.app.vm.AccountViewModel
+import com.ostirotix.app.vm.AuthViewModel
 import com.ostirotix.app.vm.MultiViewModel
 import com.ostirotix.app.vm.SoloMode
 import com.ostirotix.app.vm.SoloViewModel
@@ -38,6 +42,7 @@ object Routes {
     const val LEADERBOARD = "leaderboard"
     const val PROFILE = "profile"
     const val SETTINGS = "settings"
+    const val AUTH = "auth"
     const val LIBRARY = "library"
     const val LIBRARY_TAB = "library/{tab}"
 }
@@ -48,6 +53,16 @@ fun OstirotixNavGraph(navController: NavHostController = rememberNavController()
     val soloVm: SoloViewModel = viewModel()
     val multiVm: MultiViewModel = viewModel()
     val accountVm: AccountViewModel = viewModel()
+    val authVm: AuthViewModel = viewModel()
+
+    fun requireAuth(target: String, message: String, mode: AuthMode = AuthMode.LOGIN) {
+        if (ServiceLocator.auth.isAuthenticated()) {
+            navController.navigate(target)
+        } else {
+            ServiceLocator.auth.requireAuth(target, message, mode)
+            navController.navigate(Routes.AUTH)
+        }
+    }
 
     // L'app s'ouvre directement sur une partie solo (mot du jour), jouable sans compte.
     NavHost(navController = navController, startDestination = Routes.SOLO_DAILY) {
@@ -57,12 +72,49 @@ fun OstirotixNavGraph(navController: NavHostController = rememberNavController()
                 onDaily = { navController.navigate(Routes.SOLO_DAILY) },
                 onGrimoire = { navController.navigate(Routes.GRIMOIRE_TUTORIAL) },
                 onTraining = { navController.navigate(Routes.SOLO_TRAINING) },
-                onMulti = { navController.navigate(Routes.MULTI) },
-                onLeaderboard = { navController.navigate(Routes.LEADERBOARD) },
+                onMulti = {
+                    requireAuth(
+                        Routes.MULTI,
+                        "Connecte-toi pour accéder au duel lexical et protéger ton classement.",
+                    )
+                },
+                onLeaderboard = {
+                    requireAuth(
+                        Routes.LEADERBOARD,
+                        "Connecte-toi pour accéder au classement et retrouver ton registre.",
+                    )
+                },
                 onLibrary = { navController.navigate(Routes.LIBRARY) },
                 onTreasury = { navController.navigate("library/${ShopTab.TREASURY.route}") },
-                onProfile = { navController.navigate(Routes.PROFILE) },
+                onProfile = {
+                    requireAuth(
+                        Routes.PROFILE,
+                        "Connecte-toi pour accéder à ton profil en ligne.",
+                    )
+                },
                 onSettings = { navController.navigate(Routes.SETTINGS) },
+            )
+        }
+
+        composable(Routes.AUTH) {
+            val initialMode = ServiceLocator.auth.pendingMode
+            val message = ServiceLocator.auth.pendingMessage
+            AuthScreen(
+                vm = authVm,
+                initialMode = initialMode,
+                message = message,
+                onBack = { navController.popBackStack() },
+                onAuthenticated = {
+                    multiVm.syncAccount()
+                    val target = ServiceLocator.auth.consumePendingTarget()
+                    if (target != null) {
+                        navController.navigate(target) {
+                            popUpTo(Routes.AUTH) { inclusive = true }
+                        }
+                    } else {
+                        navController.popBackStack()
+                    }
+                },
             )
         }
 
@@ -118,6 +170,12 @@ fun OstirotixNavGraph(navController: NavHostController = rememberNavController()
             MultiModeScreen(
                 vm = multiVm,
                 onLobby = { navController.navigate(Routes.LOBBY) },
+                onRequireAuth = {
+                    requireAuth(
+                        Routes.MULTI,
+                        "Connecte-toi pour accéder au duel lexical.",
+                    )
+                },
                 onBack = { navController.popBackStack() },
             )
         }
@@ -152,16 +210,43 @@ fun OstirotixNavGraph(navController: NavHostController = rememberNavController()
             SettingsScreen(
                 vm = multiVm,
                 onLibrary = { navController.navigate(Routes.LIBRARY) },
+                onAuth = { mode ->
+                    ServiceLocator.auth.requireAuth(
+                        Routes.SETTINGS,
+                        "Connecte-toi pour accéder aux fonctionnalités liées au compte.",
+                        mode,
+                    )
+                    navController.navigate(Routes.AUTH)
+                },
                 onBack = { navController.popBackStack() },
             )
         }
         composable(Routes.LIBRARY) {
-            LibraryScreen(initialTab = ShopTab.LIBRARY) { navController.popBackStack() }
+            LibraryScreen(
+                initialTab = ShopTab.LIBRARY,
+                onRequireAuth = {
+                    ServiceLocator.auth.requireAuth(
+                        Routes.LIBRARY,
+                        "Connecte-toi pour sécuriser tes achats et retrouver tes ressources sur ton compte.",
+                    )
+                    navController.navigate(Routes.AUTH)
+                },
+                onBack = { navController.popBackStack() },
+            )
         }
         composable(Routes.LIBRARY_TAB) { entry ->
-            LibraryScreen(initialTab = ShopTab.fromRoute(entry.arguments?.getString("tab"))) {
-                navController.popBackStack()
-            }
+            val tab = ShopTab.fromRoute(entry.arguments?.getString("tab"))
+            LibraryScreen(
+                initialTab = tab,
+                onRequireAuth = {
+                    ServiceLocator.auth.requireAuth(
+                        "library/${tab.route}",
+                        "Connecte-toi pour sécuriser tes achats et retrouver tes ressources sur ton compte.",
+                    )
+                    navController.navigate(Routes.AUTH)
+                },
+                onBack = { navController.popBackStack() },
+            )
         }
     }
 }

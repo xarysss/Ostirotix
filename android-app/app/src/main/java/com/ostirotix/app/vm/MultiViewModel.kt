@@ -47,7 +47,7 @@ class MultiViewModel : ViewModel() {
 
     // --- Compte ---
     fun register(name: String) = launchBusy {
-        val acc = api.register(name)
+        val acc = api.register(name).copy(isGuest = false)
         prefs.account = acc
         _state.update { it.copy(account = acc) }
     }
@@ -59,24 +59,31 @@ class MultiViewModel : ViewModel() {
     }
 
     fun logout() {
-        prefs.account = null
+        ServiceLocator.auth.logout()
         _state.update { it.copy(account = null) }
+    }
+
+    fun syncAccount() {
+        _state.update { it.copy(account = ServiceLocator.auth.currentUser()) }
     }
 
     // --- Rooms ---
     fun createRoom(ranked: Boolean, bot: Boolean = false) = launchBusy {
-        val acc = _state.value.account ?: throw Exception("Compte requis")
+        val acc = authenticatedAccount()
         val code = api.createRoom(acc.id, ranked, bot)
         _state.update { it.copy(roomCode = code, ranked = ranked, isHost = true) }
         connect(code, acc.id)
     }
 
     fun joinRoom(code: String) = launchBusy {
-        val acc = _state.value.account ?: throw Exception("Compte requis")
+        val acc = authenticatedAccount()
         val ranked = api.roomRanked(code, acc.id)
         _state.update { it.copy(roomCode = code.uppercase(), ranked = ranked, isHost = false) }
         connect(code, acc.id)
     }
+
+    private fun authenticatedAccount(): UserAccount =
+        ServiceLocator.auth.currentUser() ?: throw Exception("Connexion requise")
 
     private fun connect(code: String, userId: String) {
         ws?.close(1000, null)

@@ -30,13 +30,51 @@ class Prefs(context: Context) {
     var account: UserAccount?
         get() {
             val id = sp.getString("accId", null) ?: return null
-            return UserAccount(id, sp.getString("accName", "?")!!, sp.getBoolean("accGuest", true))
+            return UserAccount(
+                id = id,
+                username = sp.getString("accName", "?")!!,
+                isGuest = sp.getBoolean("accGuest", true),
+                email = sp.getString("accEmail", null),
+                level = sp.getInt("accLevel", 1),
+            )
         }
         set(v) {
-            if (v == null) sp.edit().remove("accId").remove("accName").remove("accGuest").apply()
+            if (v == null) sp.edit()
+                .remove("accId").remove("accName").remove("accGuest").remove("accEmail").remove("accLevel")
+                .apply()
             else sp.edit().putString("accId", v.id).putString("accName", v.username)
-                .putBoolean("accGuest", v.isGuest).apply()
+                .putBoolean("accGuest", v.isGuest)
+                .putString("accEmail", v.email)
+                .putInt("accLevel", v.level)
+                .apply()
         }
+
+    val isAuthenticated: Boolean
+        get() = account?.isGuest == false
+
+    fun rememberAuthProfile(account: UserAccount) {
+        if (account.isGuest) return
+        sp.edit()
+            .putString("savedAuthId", account.id)
+            .putString("savedAuthName", account.username)
+            .putString("savedAuthEmail", account.email.orEmpty())
+            .putInt("savedAuthLevel", account.level)
+            .apply()
+    }
+
+    fun savedAuthAccount(email: String): UserAccount? {
+        val savedEmail = sp.getString("savedAuthEmail", null) ?: return null
+        if (!savedEmail.equals(email.trim(), ignoreCase = true)) return null
+        val id = sp.getString("savedAuthId", null) ?: return null
+        val name = sp.getString("savedAuthName", null) ?: return null
+        return UserAccount(
+            id = id,
+            username = name,
+            isGuest = false,
+            email = savedEmail,
+            level = sp.getInt("savedAuthLevel", 1),
+        )
+    }
 
     // --- Économie : pièces, pages rares, encre ---
     var coins: Int

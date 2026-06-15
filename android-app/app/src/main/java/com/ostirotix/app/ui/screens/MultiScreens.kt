@@ -68,11 +68,17 @@ import com.ostirotix.app.vm.MultiStep
 import com.ostirotix.app.vm.MultiViewModel
 
 @Composable
-fun MultiModeScreen(vm: MultiViewModel, onLobby: () -> Unit, onBack: () -> Unit) {
+fun MultiModeScreen(
+    vm: MultiViewModel,
+    onLobby: () -> Unit,
+    onRequireAuth: () -> Unit,
+    onBack: () -> Unit,
+) {
     val state by vm.state.collectAsState()
-    var nameInput by rememberSaveable { mutableStateOf("") }
     var codeInput by rememberSaveable { mutableStateOf("") }
+    val account = state.account?.takeIf { !it.isGuest }
 
+    LaunchedEffect(Unit) { vm.syncAccount() }
     LaunchedEffect(state.step) {
         if (state.step == MultiStep.LOBBY) onLobby()
     }
@@ -97,53 +103,27 @@ fun MultiModeScreen(vm: MultiViewModel, onLobby: () -> Unit, onBack: () -> Unit)
         item {
             ParchmentCard(Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    if (state.account == null) {
-                        Text("Identité du chercheur", fontFamily = Garamond, fontSize = 19.sp,
+                    if (account == null) {
+                        Text("Compte requis", fontFamily = Garamond, fontSize = 19.sp,
                             fontWeight = FontWeight.SemiBold, color = InkDark)
-                        TextField(
-                            value = nameInput,
-                            onValueChange = { nameInput = it },
-                            placeholder = {
-                                Text("Ton nom d'archiviste…", fontFamily = Garamond,
-                                    fontStyle = FontStyle.Italic, color = InkSoft)
-                            },
-                            singleLine = true,
-                            textStyle = TextStyle(fontFamily = Garamond, fontSize = 18.sp, color = InkDark),
-                            keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words),
-                            colors = TextFieldDefaults.colors(
-                                focusedContainerColor = Color.Transparent,
-                                unfocusedContainerColor = Color.Transparent,
-                                focusedIndicatorColor = InkBlue,
-                                unfocusedIndicatorColor = InkSoft.copy(alpha = 0.5f),
-                                cursorColor = InkBlue,
-                                focusedTextColor = InkDark,
-                                unfocusedTextColor = InkDark,
-                            ),
+                        Text(
+                            "Connecte-toi pour accéder aux salles, au ranked et aux requêtes serveur du duel lexical.",
+                            color = InkSoft, fontSize = 13.sp, lineHeight = 17.sp,
+                        )
+                        LeatherButton(
+                            "Se connecter",
+                            onClick = onRequireAuth,
+                            enabled = !state.busy,
                             modifier = Modifier.fillMaxWidth(),
                         )
-                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                            LeatherButton(
-                                "Créer un compte",
-                                onClick = { vm.register(nameInput.trim()) },
-                                enabled = nameInput.isNotBlank() && !state.busy,
-                                modifier = Modifier.weight(1f),
-                            )
-                            LeatherButton(
-                                "Invité",
-                                onClick = { vm.guestLogin() },
-                                enabled = !state.busy,
-                                modifier = Modifier.weight(1f),
-                            )
-                        }
                     } else {
                         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                             Column(Modifier.weight(1f)) {
                                 Text(
-                                    state.account!!.username, fontFamily = Garamond,
+                                    account.username, fontFamily = Garamond,
                                     fontSize = 20.sp, fontWeight = FontWeight.SemiBold, color = InkDark,
                                 )
-                                if (state.account!!.isGuest)
-                                    Text("Visiteur temporaire", color = InkSoft, fontSize = 12.sp)
+                                Text(account.email ?: "Compte enregistré", color = InkSoft, fontSize = 12.sp)
                             }
                             Text(
                                 "Déconnexion", color = InkSoft, fontSize = 13.sp,
@@ -162,7 +142,7 @@ fun MultiModeScreen(vm: MultiViewModel, onLobby: () -> Unit, onBack: () -> Unit)
             }
         }
 
-        if (state.account != null) {
+        if (account != null) {
             item {
                 ParchmentCard(Modifier.fillMaxWidth()) {
                     Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -210,7 +190,7 @@ fun MultiModeScreen(vm: MultiViewModel, onLobby: () -> Unit, onBack: () -> Unit)
                             value = codeInput,
                             onValueChange = { codeInput = it.uppercase().take(6) },
                             placeholder = {
-                                Text("Code de la salle…", fontFamily = Garamond,
+                                Text("Code de la salle...", fontFamily = Garamond,
                                     fontStyle = FontStyle.Italic, color = InkSoft)
                             },
                             singleLine = true,
@@ -237,19 +217,8 @@ fun MultiModeScreen(vm: MultiViewModel, onLobby: () -> Unit, onBack: () -> Unit)
                 }
             }
         }
-
-        if (state.busy) {
-            item {
-                Box(Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(color = GoldSoft, modifier = Modifier.size(28.dp))
-                }
-            }
-        }
-
-        item { Spacer(Modifier.height(20.dp)) }
     }
 }
-
 @Composable
 fun LobbyScreen(vm: MultiViewModel, onGameStart: () -> Unit, onBack: () -> Unit) {
     val state by vm.state.collectAsState()

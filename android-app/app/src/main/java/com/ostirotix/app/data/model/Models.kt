@@ -17,7 +17,13 @@ data class Guess(
     val isNewBest: Boolean,
 )
 
-data class UserAccount(val id: String, val username: String, val isGuest: Boolean)
+data class UserAccount(
+    val id: String,
+    val username: String,
+    val isGuest: Boolean,
+    val email: String? = null,
+    val level: Int = 1,
+)
 
 data class PlayerInfo(
     val id: String,

@@ -54,6 +54,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.ostirotix.app.BuildConfig
 import com.ostirotix.app.ServiceLocator
+import com.ostirotix.app.data.auth.AuthMode
 import com.ostirotix.app.ui.components.LeatherButton
 import com.ostirotix.app.ui.components.ParchmentCard
 import com.ostirotix.app.ui.theme.Garamond
@@ -102,13 +103,13 @@ private enum class LegalPage { PRIVACY, TERMS, LICENSES, DELETE }
 fun SettingsScreen(
     vm: MultiViewModel,
     onLibrary: () -> Unit,
+    onAuth: (AuthMode) -> Unit,
     onBack: () -> Unit,
 ) {
     val prefs = ServiceLocator.prefs
     val mstate by vm.state.collectAsState()
     var haptics by remember { mutableStateOf(prefs.hapticsEnabled) }
     var lang by remember { mutableStateOf(prefs.language) }
-    var nameInput by rememberSaveable { mutableStateOf("") }
     var url by rememberSaveable { mutableStateOf(prefs.serverUrl) }
     var legal by remember { mutableStateOf<LegalPage?>(null) }
 
@@ -121,38 +122,19 @@ fun SettingsScreen(
                 ParchmentCard(Modifier.fillMaxWidth()) {
                     Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         SectionTitle("Compte")
-                        val acc = mstate.account
+                        val acc = mstate.account?.takeIf { !it.isGuest }
                         if (acc == null) {
-                            Text("Connecte-toi pour le duel lexical et le classement.",
-                                color = InkSoft, fontSize = 12.sp)
-                            TextField(
-                                value = nameInput,
-                                onValueChange = { nameInput = it },
-                                placeholder = {
-                                    Text("Ton nom d'archiviste…", fontFamily = Garamond,
-                                        fontStyle = FontStyle.Italic, color = InkSoft)
-                                },
-                                singleLine = true,
-                                textStyle = TextStyle(fontFamily = Garamond, fontSize = 17.sp, color = InkDark),
-                                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words),
-                                colors = TextFieldDefaults.colors(
-                                    focusedContainerColor = Color.Transparent,
-                                    unfocusedContainerColor = Color.Transparent,
-                                    focusedIndicatorColor = InkBlue,
-                                    unfocusedIndicatorColor = InkSoft.copy(alpha = 0.5f),
-                                    cursorColor = InkBlue,
-                                    focusedTextColor = InkDark,
-                                    unfocusedTextColor = InkDark,
-                                ),
-                                modifier = Modifier.fillMaxWidth(),
-                            )
+                            Text("Tu joues actuellement en invité.",
+                                color = InkDark, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                            Text("Mot du jour et Recherche libre restent jouables. Un compte est requis pour les duels, le classement, le profil en ligne et les achats.",
+                                color = InkSoft, fontSize = 12.sp, lineHeight = 16.sp)
                             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                                 LeatherButton("Créer un compte",
-                                    onClick = { vm.register(nameInput.trim()) },
-                                    enabled = nameInput.isNotBlank() && !mstate.busy,
+                                    onClick = { onAuth(AuthMode.REGISTER) },
+                                    enabled = !mstate.busy,
                                     modifier = Modifier.weight(1f))
-                                LeatherButton("Invité",
-                                    onClick = { vm.guestLogin() },
+                                LeatherButton("Se connecter",
+                                    onClick = { onAuth(AuthMode.LOGIN) },
                                     enabled = !mstate.busy,
                                     modifier = Modifier.weight(1f))
                             }
@@ -162,10 +144,10 @@ fun SettingsScreen(
                                 Column(Modifier.weight(1f)) {
                                     Text(acc.username, fontFamily = Garamond, fontSize = 19.sp,
                                         fontWeight = FontWeight.SemiBold, color = InkDark)
-                                    Text(if (acc.isGuest) "Visiteur temporaire" else "Compte enregistré",
-                                        color = InkSoft, fontSize = 12.sp)
+                                    Text(acc.email ?: "Compte enregistré", color = InkSoft, fontSize = 12.sp)
+                                    Text("Niveau ${acc.level}", color = InkSoft, fontSize = 11.sp)
                                 }
-                                Text("Déconnexion", color = SealRed, fontSize = 13.sp,
+                                Text("Se déconnecter", color = SealRed, fontSize = 13.sp,
                                     modifier = Modifier.clip(RoundedCornerShape(8.dp))
                                         .clickable { vm.logout() }.padding(8.dp))
                             }
